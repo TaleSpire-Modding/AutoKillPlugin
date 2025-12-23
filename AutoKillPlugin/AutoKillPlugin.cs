@@ -8,11 +8,13 @@ using UnityEngine;
 
 namespace AutoKill
 {
-    [BepInPlugin(Guid, "Auto Kill Plugin", Version)]
+    [BepInPlugin(Guid, Name, Version)]
+    [BepInDependency(PluginUtilities.SetInjectionFlag.Guid)]
     public class AutoKillPlugin : BaseUnityPlugin
     {
         // constants
         public const string Guid = "org.hollofox.plugins.AutoKillPlugin";
+        public const string Name = "Auto Kill Plugin";
         public const string Version = "0.0.0.0";
 
         // Triggering Key
