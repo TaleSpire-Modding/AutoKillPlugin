@@ -22,6 +22,7 @@ Build the project (We now use Nuget).
 Browse to the newly created ```bin/Debug``` or ```bin/Release``` folders and copy the ```.dll``` to ```Steam\steamapps\common\TaleSpire\BepInEx\plugins```
 
 ## Changelog
+- 1.0.2: Updated to handle mode switching during combat more gracefully
 - 1.0.1: Set Hard dependency on Set Injection Flags to ensure compatibility
 - 1.0.0: Initial release
 

@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using System;
 
 namespace AutoKillPlugin.Patches
 {
@@ -11,7 +12,7 @@ namespace AutoKillPlugin.Patches
                 return;
             if (!AutoKill.AutoKillPlugin.creaturesToDelete.ContainsKey(element.CreatureGuid))
                 return;
-            AutoKill.AutoKillPlugin.creaturesPendingDeletion.Enqueue(AutoKill.AutoKillPlugin.creaturesToDelete[element.CreatureGuid]);
+            AutoKill.AutoKillPlugin.creaturesPendingDeletion.AddFirst((AutoKill.AutoKillPlugin.creaturesToDelete[element.CreatureGuid], DateTimeOffset.Now));
             AutoKill.AutoKillPlugin.creaturesToDelete.Remove(element.CreatureGuid);
         }
     }
