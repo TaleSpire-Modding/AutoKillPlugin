@@ -1,7 +1,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
-using ModdingTales;
+using PluginUtilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,8 +10,8 @@ using UnityEngine;
 namespace AutoKill
 {
     [BepInPlugin(Guid, Name, Version)]
-    [BepInDependency(PluginUtilities.SetInjectionFlag.Guid)]
-    public class AutoKillPlugin : BaseUnityPlugin
+    [BepInDependency(SetInjectionFlag.Guid)]
+    public class AutoKillPlugin : DependencyUnityPlugin
     {
         // constants
         public const string Guid = "org.hollofox.plugins.AutoKillPlugin";
@@ -28,54 +28,76 @@ namespace AutoKill
 
         internal static ActionTimeline knockedDownAction;
 
+        private Harmony harmony;
+
         /// <summary>
         /// Awake plugin
         /// </summary>
-        void Awake()
+        protected override void OnAwake()
         {
             Debug.Log("Auto Kill loaded");
 
             trigger = Config.Bind("Hotkeys", "Delete Asset", new KeyboardShortcut(KeyCode.Delete, KeyCode.RightControl));
             ttl = Config.Bind("Timer", "Time To Live", 30);
 
-            ModdingUtils.AddPluginToMenuList(this);
-            Harmony harmony = new Harmony(Guid);
+            harmony = new Harmony(Guid);
             harmony.PatchAll();
 
             // Not the right event, this occurs from GM/Player/Spectator mode swap
-            PlayMode.OnStateChange += (mode) =>
-            {
-                if (mode.Is<PlayMode.TurnBased>())
-                {
-                    while (creaturesPendingDeletion.Count > 0)
-                    {
-                        CreatureBoardAsset c = creaturesPendingDeletion.First().Item1;
-                        creaturesPendingDeletion.RemoveFirst();
-                        creaturesToDelete.Add(c.CreatureId, c);
-                    }
-
-                    // Remove the creature now if it starts the initiative round and needs to be deleted
-                    if (InitiativeManager.CurrentTurnElement != null && creaturesToDelete.ContainsKey(InitiativeManager.CurrentTurnElement.CreatureGuid))
-                    {
-                        var key = InitiativeManager.CurrentTurnElement.CreatureGuid;
-                        CreatureBoardAsset c = creaturesToDelete[key];
-                        creaturesPendingDeletion.AddFirst((c, DateTimeOffset.Now));
-                        creaturesToDelete.Remove(key);
-                    }
-                }
-                else
-                {
-                    CreatureGuid[] keys = creaturesToDelete.Keys.ToArray();
-                    foreach (CreatureGuid key in keys)
-                    {
-                        CreatureBoardAsset c = creaturesToDelete[key];
-                        creaturesPendingDeletion.AddFirst((c, DateTimeOffset.Now.AddSeconds(ttl.Value)));
-                        creaturesToDelete.Remove(key);
-                    }
-                }
-            };
+            PlayMode.OnStateChange += OnStateChange;
 
             knockedDownAction = ActionTimelineDatabase.GetActionPrefab("TLA_Action_Knockdown");
+        }
+
+
+
+        protected override void OnDestroyed()
+        {
+            // remove event handler
+            PlayMode.OnStateChange -= OnStateChange;
+
+            // Unpatch Harmony
+            harmony.UnpatchSelf();
+
+            // Cleanup
+            knockedDownAction = null;
+            creaturesPendingDeletion.Clear();
+            creaturesToDelete.Clear();
+            harmony = null;
+
+            Logger.LogDebug($"{Name} unloaded");
+        }
+
+        void OnStateChange(PlayMode.State mode)
+        {
+            if (mode.Is<PlayMode.TurnBased>())
+            {
+                while (creaturesPendingDeletion.Count > 0)
+                {
+                    CreatureBoardAsset c = creaturesPendingDeletion.First().Item1;
+                    creaturesPendingDeletion.RemoveFirst();
+                    creaturesToDelete.Add(c.CreatureId, c);
+                }
+
+                // Remove the creature now if it starts the initiative round and needs to be deleted
+                if (InitiativeManager.CurrentTurnElement != null && creaturesToDelete.ContainsKey(InitiativeManager.CurrentTurnElement.CreatureGuid))
+                {
+                    var key = InitiativeManager.CurrentTurnElement.CreatureGuid;
+                    CreatureBoardAsset c = creaturesToDelete[key];
+                    creaturesPendingDeletion.AddFirst((c, DateTimeOffset.Now));
+                    creaturesToDelete.Remove(key);
+                }
+            }
+            else
+            {
+                CreatureGuid[] keys = creaturesToDelete.Keys.ToArray();
+                foreach (CreatureGuid key in keys)
+                {
+                    CreatureBoardAsset c = creaturesToDelete[key];
+                    creaturesPendingDeletion.AddFirst((c, DateTimeOffset.Now.AddSeconds(ttl.Value)));
+                    creaturesToDelete.Remove(key);
+                }
+            }
         }
 
         void Update()
