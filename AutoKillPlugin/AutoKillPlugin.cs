@@ -11,7 +11,7 @@ namespace AutoKill
 {
     [BepInPlugin(Guid, Name, Version)]
     [BepInDependency(SetInjectionFlag.Guid)]
-    public class AutoKillPlugin : DependencyUnityPlugin
+    public class AutoKillPlugin : DependencyUnityPlugin<AutoKillPlugin>
     {
         // constants
         public const string Guid = "org.hollofox.plugins.AutoKillPlugin";
@@ -30,16 +30,17 @@ namespace AutoKill
 
         private Harmony harmony;
 
+        protected override void OnSetupConfig(ConfigFile config)
+        {
+            trigger = Config.Bind("Hotkeys", "Delete Asset", new KeyboardShortcut(KeyCode.Delete, KeyCode.RightControl));
+            ttl = Config.Bind("Timer", "Time To Live", 30);
+        }
+
         /// <summary>
         /// Awake plugin
         /// </summary>
         protected override void OnAwake()
         {
-            Debug.Log("Auto Kill loaded");
-
-            trigger = Config.Bind("Hotkeys", "Delete Asset", new KeyboardShortcut(KeyCode.Delete, KeyCode.RightControl));
-            ttl = Config.Bind("Timer", "Time To Live", 30);
-
             harmony = new Harmony(Guid);
             harmony.PatchAll();
 
@@ -57,7 +58,7 @@ namespace AutoKill
             PlayMode.OnStateChange -= OnStateChange;
 
             // Unpatch Harmony
-            harmony.UnpatchSelf();
+            harmony?.UnpatchSelf();
 
             // Cleanup
             knockedDownAction = null;
